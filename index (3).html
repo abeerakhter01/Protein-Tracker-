@@ -1,0 +1,533 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Protein Ring">
+<meta name="theme-color" content="#0F8670">
+<meta name="color-scheme" content="light dark">
+<title>Protein Ring</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Space+Grotesk:wght@500;700&display=swap">
+<style>
+/* Layout: one column. Ring on top, two lists (Meals, Items) you build yourself, then a calendar-week chart and a month chart. */
+:root {
+  --bg: #F1F5F7;
+  --surface: #FFFFFF;
+  --ink: #13202A;
+  --muted: #566673;
+  --line: #D9E2E8;
+  --track: #E3EAEE;
+  --c-meal: #0F8670;
+  --c-item: #C47A00;
+  --hit: #1C8F52;
+  --accent: #1B6FA8;
+  --danger: #B3362B;
+  --on: #FFFFFF;
+  --font-display: "Space Grotesk", "Inter", system-ui, sans-serif;
+  --font-body: "Inter", system-ui, -apple-system, "Segoe UI", sans-serif;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0E151B; --surface: #16202A; --ink: #E7EEF3; --muted: #92A3B0; --line: #25323D; --track: #243038;
+    --c-meal: #35C2A8; --c-item: #F2B33D; --hit: #3ED58B; --accent: #6DB6EA; --danger: #FF8A7D; --on: #0E151B;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0E151B; --surface: #16202A; --ink: #E7EEF3; --muted: #92A3B0; --line: #25323D; --track: #243038;
+  --c-meal: #35C2A8; --c-item: #F2B33D; --hit: #3ED58B; --accent: #6DB6EA; --danger: #FF8A7D; --on: #0E151B;
+  color-scheme: dark;
+}
+html { background: var(--bg); }
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--ink);
+  font-family: var(--font-body);
+  font-size: 15px;
+  line-height: 1.45;
+  padding-top: max(20px, env(safe-area-inset-top, 0px));
+  padding-bottom: max(40px, env(safe-area-inset-bottom, 0px));
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+}
+.app { max-width: 520px; margin: 0 auto; display: flex; flex-direction: column; gap: 20px; }
+button { font: inherit; color: inherit; cursor: pointer; }
+:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
+[hidden] { display: none !important; }
+
+.top { display: flex; align-items: flex-end; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+.eyebrow { font-size: 12px; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); font-weight: 600; margin: 0; }
+h1 { font-family: var(--font-display); font-size: 26px; line-height: 1.15; font-weight: 700; text-wrap: balance; margin: 0; }
+h2 { margin: 0; }
+.ghost { background: transparent; border: 1px solid var(--line); border-radius: 8px; padding: 8px 12px; font-size: 14px; font-weight: 500; min-height: 40px; }
+.ghost[aria-pressed="true"] { background: var(--ink); color: var(--bg); border-color: var(--ink); }
+.primary { background: var(--accent); color: var(--on); border: 1px solid var(--accent); border-radius: 8px; padding: 8px 14px; font-size: 14px; font-weight: 600; min-height: 40px; }
+.banner { background: var(--surface); border: 1px solid var(--line); border-left: 4px solid var(--accent); border-radius: 8px; padding: 10px 12px; font-size: 14px; }
+
+.ring-card { background: var(--surface); border: 1px solid var(--line); border-radius: 16px; padding: 24px 16px 20px; display: flex; flex-direction: column; align-items: center; gap: 14px; }
+.ring-wrap { position: relative; width: min(300px, 78vw); aspect-ratio: 1; max-width: 100%; }
+.ring-wrap svg { width: 100%; height: 100%; display: block; }
+.ring-center { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; }
+.ring-num { font-family: var(--font-display); font-weight: 700; font-size: clamp(48px, 16vw, 64px); line-height: 1; font-variant-numeric: tabular-nums; }
+.ring-num small { font-size: .4em; font-weight: 500; color: var(--muted); margin-left: 2px; }
+.ring-goal { color: var(--muted); font-size: 14px; margin-top: 4px; font-variant-numeric: tabular-nums; }
+.ring-status { font-family: var(--font-display); font-weight: 500; font-size: 16px; font-variant-numeric: tabular-nums; }
+.ring-status.hit { color: var(--hit); }
+.legend { display: flex; flex-wrap: wrap; gap: 6px 16px; justify-content: center; font-size: 13px; color: var(--muted); }
+.legend span { display: inline-flex; align-items: center; gap: 6px; font-variant-numeric: tabular-nums; }
+.legend i { width: 10px; height: 10px; border-radius: 50%; display: inline-block; }
+
+.lists { display: flex; flex-direction: column; gap: 24px; }
+.group { display: flex; flex-direction: column; gap: 6px; }
+.group-head { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; padding: 0 2px; }
+.group-title { font-family: var(--font-display); font-weight: 700; font-size: 18px; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.group-title i { width: 12px; height: 12px; border-radius: 50%; display: inline-block; }
+.group-hint { font-size: 13px; color: var(--muted); font-weight: 400; font-family: var(--font-body); }
+.group-sum { font-variant-numeric: tabular-nums; font-weight: 600; font-size: 14px; color: var(--muted); }
+.rows { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; overflow: hidden; }
+.item { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 12px; padding: 10px 12px; min-height: 60px; }
+.item + .item { border-top: 1px solid var(--line); }
+.item-name { font-weight: 500; overflow-wrap: anywhere; }
+.item-sub { font-size: 13px; color: var(--muted); font-variant-numeric: tabular-nums; display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.empty { padding: 16px 12px; color: var(--muted); font-size: 14px; }
+.dots { display: flex; gap: 8px; flex-wrap: wrap; justify-content: flex-end; max-width: 190px; }
+.dot { position: relative; width: 38px; height: 38px; border-radius: 50%; border: 2px solid var(--gc); background: transparent; padding: 0; display: grid; place-items: center; }
+.dot[aria-pressed="true"] { background: var(--gc); }
+.dot[aria-pressed="true"]::after { content: ""; width: 12px; height: 6px; border-left: 3px solid var(--on); border-bottom: 3px solid var(--on); transform: rotate(-45deg) translate(1px, -1px); }
+.del { background: transparent; border: 0; padding: 4px 6px; color: var(--danger); font-size: 13px; font-weight: 600; text-decoration: underline; min-height: 32px; }
+.gin { width: 64px; background: var(--bg); color: var(--ink); border: 1px solid var(--line); border-radius: 6px; padding: 4px 8px; font: inherit; font-size: 16px; font-variant-numeric: tabular-nums; min-height: 36px; }
+.addbtn { width: 100%; background: transparent; border: 1.5px dashed var(--line); border-radius: 12px; padding: 12px; font-weight: 600; color: var(--accent); min-height: 48px; }
+.addform { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 14px 12px; display: flex; flex-direction: column; gap: 12px; }
+.addform label { display: flex; flex-direction: column; gap: 4px; font-size: 13px; font-weight: 600; color: var(--muted); min-width: 0; }
+.addform input { background: var(--bg); color: var(--ink); border: 1px solid var(--line); border-radius: 8px; padding: 8px 10px; font: inherit; font-size: 16px; min-height: 44px; width: 100%; min-width: 0; box-sizing: border-box; }
+.addrow { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+.addbtns { display: flex; gap: 8px; flex-wrap: wrap; }
+.formerr { color: var(--danger); font-size: 13px; font-weight: 500; min-height: 0; }
+
+.card { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 16px 12px; display: flex; flex-direction: column; gap: 12px; }
+.card-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.card-title { font-family: var(--font-display); font-weight: 700; font-size: 18px; }
+.nav-wrap { display: flex; align-items: center; gap: 4px; min-width: 0; }
+.nav { width: 40px; height: 40px; border-radius: 8px; border: 1px solid var(--line); background: transparent; display: grid; place-items: center; font-size: 20px; line-height: 1; padding: 0; }
+.nav:disabled { opacity: .35; cursor: default; }
+.range { font-size: 14px; font-weight: 600; text-align: center; min-width: 118px; font-variant-numeric: tabular-nums; }
+.sum { font-size: 13px; color: var(--muted); margin: 0; }
+.days { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 8px; }
+.day { display: flex; flex-direction: column; align-items: center; gap: 6px; font-size: 12px; color: var(--muted); font-variant-numeric: tabular-nums; }
+.bar { width: 100%; max-width: 36px; height: 64px; background: var(--track); border-radius: 6px; display: flex; align-items: flex-end; overflow: hidden; }
+.bar b { display: block; width: 100%; background: var(--accent); }
+.bar.hit b { background: var(--hit); }
+.day.off { opacity: .45; }
+.day.today .lbl { color: var(--ink); font-weight: 700; }
+.day.today .bar { outline: 2px solid var(--ink); outline-offset: 2px; }
+.mbars { display: flex; gap: 3px; align-items: flex-end; height: 96px; }
+.mcol { flex: 1 1 0; min-width: 0; height: 100%; display: flex; align-items: flex-end; padding: 0; border: 0; background: transparent; }
+.mbar { width: 100%; height: 100%; background: var(--track); border-radius: 3px; display: flex; align-items: flex-end; overflow: hidden; }
+.mbar b { display: block; width: 100%; background: var(--accent); }
+.mbar.hit b { background: var(--hit); }
+.mcol.off .mbar { opacity: .5; }
+.mcol.today .mbar { outline: 2px solid var(--ink); outline-offset: 1px; }
+.mcol.sel .mbar { outline: 2px solid var(--accent); outline-offset: 1px; }
+.mlabels { display: flex; gap: 3px; font-size: 11px; color: var(--muted); font-variant-numeric: tabular-nums; }
+.mlabels span { flex: 1 1 0; min-width: 0; display: flex; justify-content: center; white-space: nowrap; }
+.readout { font-size: 14px; min-height: 21px; margin: 0; }
+.foot { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; font-size: 13px; color: var(--muted); }
+.goal-edit { display: flex; align-items: center; gap: 8px; font-size: 14px; }
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; } }
+</style>
+</head>
+<body>
+<main class="app">
+  <header class="top">
+    <div>
+      <p class="eyebrow">Protein Ring</p>
+      <h1 id="dateLabel"></h1>
+    </div>
+    <button id="editBtn" class="ghost" type="button" aria-pressed="false">Edit list</button>
+  </header>
+
+  <div class="banner" id="banner" hidden></div>
+
+  <div class="goal-edit" id="goalEdit" hidden>
+    <label for="goalIn">Daily goal</label>
+    <input id="goalIn" class="gin" type="number" inputmode="numeric" min="40" max="300">
+    <span>g</span>
+  </div>
+
+  <section class="ring-card" aria-label="Protein progress today">
+    <div class="ring-wrap">
+      <svg viewBox="0 0 200 200" role="img" id="ringSvg" aria-label="Protein ring"></svg>
+      <div class="ring-center">
+        <div class="ring-num" id="ringNum"></div>
+        <div class="ring-goal" id="ringGoal"></div>
+        <div class="ring-status" id="ringStatus"></div>
+      </div>
+    </div>
+    <div class="legend" id="legend"></div>
+  </section>
+
+  <div class="lists" id="groups"></div>
+
+  <section class="card" aria-label="Week">
+    <div class="card-head">
+      <h2 class="card-title">Week</h2>
+      <div class="nav-wrap">
+        <button class="nav" type="button" data-nav="week-prev" id="weekPrev" aria-label="Previous week">&#8249;</button>
+        <span class="range" id="weekRange"></span>
+        <button class="nav" type="button" data-nav="week-next" id="weekNext" aria-label="Next week">&#8250;</button>
+      </div>
+    </div>
+    <div class="days" id="days"></div>
+    <p class="sum" id="weekSum"></p>
+  </section>
+
+  <section class="card" aria-label="Month">
+    <div class="card-head">
+      <h2 class="card-title">Month</h2>
+      <div class="nav-wrap">
+        <button class="nav" type="button" data-nav="month-prev" id="monthPrev" aria-label="Previous month">&#8249;</button>
+        <span class="range" id="monthRange"></span>
+        <button class="nav" type="button" data-nav="month-next" id="monthNext" aria-label="Next month">&#8250;</button>
+      </div>
+    </div>
+    <div class="mbars" id="mbars"></div>
+    <div class="mlabels" id="mlabels" aria-hidden="true"></div>
+    <p class="readout" id="readout" aria-live="polite"></p>
+    <p class="sum" id="monthSum"></p>
+  </section>
+
+  <div class="foot">
+    <span id="syncNote">Saved on this device only</span>
+    <button id="clearBtn" class="ghost" type="button">Clear today</button>
+  </div>
+</main>
+
+<script>
+(function () {
+  var GROUPS = [
+    { id: "meal", name: "Meals", hint: "A whole plate and its protein", addLabel: "Add a meal", ph: "e.g. Chicken and rice", defMax: "1" },
+    { id: "item", name: "Items", hint: "Single foods, bars and drinks", addLabel: "Add an item", ph: "e.g. Greek yogurt", defMax: "3" }
+  ];
+  var LS_KEY = "proteinRing.v3";
+  var DEFAULT_START = "2026-11-11";
+  var state = { goal: 120, start: DEFAULT_START, entries: [], days: {} };
+  var editing = false, clearArmed = false, clearTimer = null;
+  var adding = null, draft = { name: "", g: "", max: "" };
+  var weekOffset = 0, monthOffset = 0, monthSel = null, lastToday = null;
+
+  function pad(n) { return n < 10 ? "0" + n : "" + n; }
+  function keyFor(d) { return d.getFullYear() + "-" + pad(d.getMonth() + 1) + "-" + pad(d.getDate()); }
+  function parseKey(k) { var p = k.split("-"); return new Date(+p[0], +p[1] - 1, +p[2]); }
+  function addDays(d, n) { return new Date(d.getFullYear(), d.getMonth(), d.getDate() + n); }
+  function mondayOf(d) { return addDays(d, -((d.getDay() + 6) % 7)); }
+  function todayKey() { return keyFor(new Date()); }
+  function fmt(d, o) { return d.toLocaleDateString(undefined, o); }
+  function esc(s) { return String(s).replace(/[&<>"']/g, function (c) { return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]; }); }
+  function dayOf(key) { return state.days[key] || { counts: {}, total: 0 }; }
+  function totalOf(counts) {
+    var t = 0;
+    state.entries.forEach(function (it) { t += (counts[it.id] || 0) * it.g; });
+    return t;
+  }
+  function dayTotal(dk, today, liveTotal) {
+    if (dk === today) return liveTotal;
+    return state.days[dk] ? (state.days[dk].total || 0) : 0;
+  }
+  function newId() { return "e" + Date.now().toString(36) + Math.random().toString(36).slice(2, 6); }
+  function formFocused() {
+    var a = document.activeElement;
+    return !!(a && a.closest && a.closest(".addform"));
+  }
+
+  function lsLoad() {
+    try {
+      var s = localStorage.getItem(LS_KEY);
+      if (s) {
+        var o = JSON.parse(s);
+        if (o && typeof o === "object") {
+          state.goal = o.goal || 120;
+          state.start = typeof o.start === "string" ? o.start : DEFAULT_START;
+          state.entries = Array.isArray(o.entries) ? o.entries : [];
+          state.days = o.days || {};
+        }
+      }
+    } catch (e) {}
+  }
+  function save() { try { localStorage.setItem(LS_KEY, JSON.stringify(state)); } catch (e) {} }
+
+  function setCount(id, k) {
+    var key = todayKey();
+    var day = state.days[key] || (state.days[key] = { counts: {}, total: 0 });
+    var cur = day.counts[id] || 0;
+    var next = cur >= k ? k - 1 : k;
+    if (next > 0) day.counts[id] = next; else delete day.counts[id];
+    day.total = totalOf(day.counts);
+    save();
+    render();
+  }
+
+  function renderRing(counts) {
+    var goal = state.goal, C = 2 * Math.PI * 84, acc = 0, segs = "";
+    GROUPS.forEach(function (g) {
+      state.entries.forEach(function (it) {
+        if (it.kind !== g.id) return;
+        var n = counts[it.id] || 0;
+        if (!n || acc >= goal) return;
+        var amt = Math.min(n * it.g, goal - acc);
+        if (amt <= 0) return;
+        var len = (amt / goal) * C, start = (acc / goal) * C;
+        var draw = Math.max(len - 2, 1);
+        segs += '<circle cx="100" cy="100" r="84" fill="none" stroke-width="18" style="stroke:var(--c-' + g.id + ')" stroke-dasharray="' + draw.toFixed(2) + " " + C.toFixed(2) + '" stroke-dashoffset="' + (-start).toFixed(2) + '" transform="rotate(-90 100 100)"/>';
+        acc += amt;
+      });
+    });
+    document.getElementById("ringSvg").innerHTML = '<circle cx="100" cy="100" r="84" fill="none" stroke-width="18" style="stroke:var(--track)"/>' + segs;
+  }
+
+  function groupHtml(g, counts, gsum) {
+    var list = state.entries.filter(function (it) { return it.kind === g.id; });
+    var rows;
+    if (!list.length) {
+      rows = '<div class="empty">Nothing here yet. ' + (g.id === "meal" ? "Add a meal you eat often and tap it each time you have it." : "Add a food, bar or drink and tap it each time you have it.") + "</div>";
+    } else {
+      rows = list.map(function (it) {
+        var n = counts[it.id] || 0, dots = "";
+        for (var k = 1; k <= it.max; k++) {
+          dots += '<button type="button" class="dot" data-item="' + esc(it.id) + '" data-k="' + k + '" style="--gc:var(--c-' + g.id + ')" aria-pressed="' + (n >= k) + '" aria-label="' + esc(it.name) + ", " + k + " of " + it.max + '"></button>';
+        }
+        var sub;
+        if (editing) {
+          sub = '<input class="gin" type="number" inputmode="numeric" min="1" max="200" data-gram="' + esc(it.id) + '" value="' + it.g + '" aria-label="Protein grams for ' + esc(it.name) + '"><span>g protein</span><button type="button" class="del" data-del="' + esc(it.id) + '" aria-label="Remove ' + esc(it.name) + '">Remove</button>';
+        } else {
+          sub = "<span>" + it.g + "g protein" + (it.max > 1 ? " each" : "") + (n > 1 ? " · " + (n * it.g) + "g so far" : "") + "</span>";
+        }
+        return '<div class="item"><div><div class="item-name">' + esc(it.name) + '</div><div class="item-sub">' + sub + '</div></div><div class="dots">' + dots + "</div></div>";
+      }).join("");
+    }
+    var tail;
+    if (adding === g.id) {
+      tail = '<form class="addform" data-kind="' + g.id + '" novalidate>' +
+        '<label for="f-name">Name<input id="f-name" name="name" type="text" maxlength="40" autocomplete="off" placeholder="' + esc(g.ph) + '" value="' + esc(draft.name) + '"></label>' +
+        '<div class="addrow">' +
+        '<label for="f-g">Protein (g)<input id="f-g" name="g" type="number" inputmode="numeric" min="1" max="200" value="' + esc(draft.g) + '"></label>' +
+        '<label for="f-max">Times a day<input id="f-max" name="max" type="number" inputmode="numeric" min="1" max="8" value="' + esc(draft.max) + '"></label>' +
+        '</div><div class="formerr" id="formerr" role="alert"></div>' +
+        '<div class="addbtns"><button type="submit" class="primary">' + esc(g.addLabel) + '</button><button type="button" class="ghost" data-cancel="1">Cancel</button></div></form>';
+    } else {
+      tail = '<button type="button" class="addbtn" data-add="' + g.id + '">+ ' + esc(g.addLabel) + "</button>";
+    }
+    return '<section class="group" aria-label="' + esc(g.name) + '"><div class="group-head"><h2 class="group-title"><i style="background:var(--c-' + g.id + ')"></i>' + esc(g.name) + ' <span class="group-hint">' + esc(g.hint) + '</span></h2><span class="group-sum">' + Math.round(gsum[g.id] || 0) + 'g</span></div><div class="rows">' + rows + "</div>" + tail + "</section>";
+  }
+
+  function renderWeek(today, liveTotal) {
+    var base = addDays(mondayOf(parseKey(today)), weekOffset * 7);
+    var firstMon = mondayOf(parseKey(state.start));
+    var cells = "", hits = 0, tracked = 0, goal = state.goal;
+    var names = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
+    for (var i = 0; i < 7; i++) {
+      var d = addDays(base, i), dk = keyFor(d);
+      var on = dk >= state.start && dk <= today;
+      var t = dayTotal(dk, today, liveTotal);
+      var hit = on && t >= goal;
+      if (on) { tracked++; if (hit) hits++; }
+      var pct = on ? Math.max(0, Math.min(100, (t / goal) * 100)) : 0;
+      cells += '<div class="day' + (on ? "" : " off") + (dk === today ? " today" : "") + '"><div class="bar' + (hit ? " hit" : "") + '" role="img" aria-label="' + names[i] + ", " + fmt(d, { month: "short", day: "numeric" }) + ": " + (on ? Math.round(t) + " grams" : "not tracked") + '"><b style="height:' + pct.toFixed(0) + '%"></b></div><span class="lbl">' + names[i] + "</span><span>" + (on && t ? Math.round(t) : "–") + "</span></div>";
+    }
+    document.getElementById("days").innerHTML = cells;
+    document.getElementById("weekRange").textContent = fmt(base, { month: "short", day: "numeric" }) + " – " + fmt(addDays(base, 6), { month: "short", day: "numeric" });
+    document.getElementById("weekPrev").disabled = base.getTime() <= firstMon.getTime();
+    document.getElementById("weekNext").disabled = weekOffset >= 0;
+    document.getElementById("weekSum").textContent = tracked ? hits + " of " + tracked + (tracked === 1 ? " day" : " days") + " at " + goal + "g or more" : "Nothing tracked this week yet";
+  }
+
+  function renderMonth(today, liveTotal) {
+    var t0 = parseKey(today);
+    var first = new Date(t0.getFullYear(), t0.getMonth() + monthOffset, 1);
+    var n = new Date(first.getFullYear(), first.getMonth() + 1, 0).getDate();
+    var sf = parseKey(state.start), startMonth = new Date(sf.getFullYear(), sf.getMonth(), 1);
+    var goal = state.goal, bars = "", labels = "", hits = 0, tracked = 0, sum = 0;
+    var show = { 1: 1, 5: 1, 10: 1, 15: 1, 20: 1, 25: 1 };
+    show[n] = 1;
+    for (var day = 1; day <= n; day++) {
+      var d = new Date(first.getFullYear(), first.getMonth(), day), dk = keyFor(d);
+      var on = dk >= state.start && dk <= today;
+      var t = dayTotal(dk, today, liveTotal);
+      var hit = on && t >= goal;
+      if (on) { tracked++; sum += t; if (hit) hits++; }
+      var pct = on ? Math.max(0, Math.min(100, (t / goal) * 100)) : 0;
+      bars += '<button type="button" class="mcol' + (on ? "" : " off") + (dk === today ? " today" : "") + (dk === monthSel ? " sel" : "") + '" data-day="' + dk + '" aria-label="' + fmt(d, { weekday: "long", month: "short", day: "numeric" }) + ": " + (on ? Math.round(t) + " grams" : "not tracked") + '"><span class="mbar' + (hit ? " hit" : "") + '"><b style="height:' + pct.toFixed(0) + '%"></b></span></button>';
+      labels += "<span>" + (show[day] ? day : "") + "</span>";
+    }
+    document.getElementById("mbars").innerHTML = bars;
+    document.getElementById("mlabels").innerHTML = labels;
+    document.getElementById("monthRange").textContent = fmt(first, { month: "long", year: "numeric" });
+    document.getElementById("monthPrev").disabled = first.getTime() <= startMonth.getTime();
+    document.getElementById("monthNext").disabled = monthOffset >= 0;
+    var ro = document.getElementById("readout");
+    if (monthSel && monthSel.slice(0, 7) === keyFor(first).slice(0, 7)) {
+      var sd = parseKey(monthSel), son = monthSel >= state.start && monthSel <= today;
+      var st = dayTotal(monthSel, today, liveTotal);
+      ro.textContent = fmt(sd, { weekday: "short", month: "short", day: "numeric" }) + ": " + (son ? Math.round(st) + "g" + (st >= goal ? ", goal hit" : "") : "not tracked");
+    } else {
+      ro.textContent = "Tap a bar to see that day.";
+    }
+    document.getElementById("monthSum").textContent = tracked
+      ? hits + " of " + tracked + (tracked === 1 ? " day" : " days") + " at " + goal + "g or more · average " + Math.round(sum / tracked) + "g"
+      : "Nothing tracked this month yet";
+  }
+
+  function render() {
+    var key = todayKey();
+    if (lastToday !== null && lastToday !== key) { weekOffset = 0; monthOffset = 0; monthSel = null; clearArmed = false; }
+    lastToday = key;
+    var day = dayOf(key), counts = day.counts, goal = state.goal;
+    var total = totalOf(counts);
+    var now = new Date();
+    document.getElementById("dateLabel").textContent = fmt(now, { weekday: "long", month: "short", day: "numeric" });
+    document.getElementById("goalIn").value = goal;
+    document.getElementById("goalEdit").hidden = !editing;
+    var eb = document.getElementById("editBtn");
+    eb.setAttribute("aria-pressed", editing ? "true" : "false");
+    eb.textContent = editing ? "Done" : "Edit list";
+
+    var bn = document.getElementById("banner");
+    if (key < state.start) {
+      var sd = parseKey(state.start), diff = Math.round((sd - parseKey(key)) / 86400000);
+      bn.textContent = "Tracking starts " + (diff === 1 ? "tomorrow, " : "") + fmt(sd, { weekday: "long", month: "short", day: "numeric" }) + ". You can set up your meals and items now. Anything you log today won't count.";
+      bn.hidden = false;
+    } else { bn.hidden = true; }
+
+    renderRing(counts);
+    document.getElementById("ringNum").innerHTML = Math.round(total) + "<small>g</small>";
+    document.getElementById("ringGoal").textContent = "of " + goal + "g protein";
+    var st = document.getElementById("ringStatus");
+    if (total < goal) { st.textContent = Math.round(goal - total) + "g to go"; st.className = "ring-status"; }
+    else if (total === goal) { st.textContent = "Goal hit"; st.className = "ring-status hit"; }
+    else { st.textContent = "Goal hit, +" + Math.round(total - goal) + "g"; st.className = "ring-status hit"; }
+
+    var gsum = {};
+    state.entries.forEach(function (it) { gsum[it.kind] = (gsum[it.kind] || 0) + (counts[it.id] || 0) * it.g; });
+    document.getElementById("legend").innerHTML = GROUPS.map(function (g) {
+      return '<span><i style="background:var(--c-' + g.id + ')"></i>' + esc(g.name) + " " + Math.round(gsum[g.id] || 0) + "g</span>";
+    }).join("");
+    document.getElementById("groups").innerHTML = GROUPS.map(function (g) { return groupHtml(g, counts, gsum); }).join("");
+
+    renderWeek(key, total);
+    renderMonth(key, total);
+    document.getElementById("clearBtn").textContent = clearArmed ? "Tap again to clear" : "Clear today";
+  }
+
+  document.addEventListener("click", function (e) {
+    var t = e.target;
+    if (!t.closest) return;
+    var dot = t.closest(".dot");
+    if (dot) { setCount(dot.getAttribute("data-item"), parseInt(dot.getAttribute("data-k"), 10)); return; }
+    if (t.closest("#editBtn")) { editing = !editing; render(); return; }
+    var nav = t.closest("[data-nav]");
+    if (nav) {
+      if (nav.disabled) return;
+      var w = nav.getAttribute("data-nav");
+      if (w === "week-prev") weekOffset--;
+      else if (w === "week-next") weekOffset++;
+      else if (w === "month-prev") { monthOffset--; monthSel = null; }
+      else if (w === "month-next") { monthOffset++; monthSel = null; }
+      render();
+      return;
+    }
+    var bar = t.closest("[data-day]");
+    if (bar) { monthSel = bar.getAttribute("data-day"); render(); return; }
+    var addB = t.closest("[data-add]");
+    if (addB) {
+      adding = addB.getAttribute("data-add");
+      var g = GROUPS.filter(function (x) { return x.id === adding; })[0];
+      draft = { name: "", g: "", max: g.defMax };
+      render();
+      var f = document.getElementById("f-name");
+      if (f) f.focus();
+      return;
+    }
+    if (t.closest("[data-cancel]")) { adding = null; render(); return; }
+    var del = t.closest("[data-del]");
+    if (del) {
+      var id = del.getAttribute("data-del");
+      state.entries = state.entries.filter(function (it) { return it.id !== id; });
+      var key = todayKey(), d = dayOf(key);
+      delete d.counts[id];
+      d.total = totalOf(d.counts);
+      save();
+      render();
+      return;
+    }
+    if (t.closest("#clearBtn")) {
+      if (!clearArmed) {
+        clearArmed = true; clearTimeout(clearTimer);
+        clearTimer = setTimeout(function () { clearArmed = false; render(); }, 3000);
+      } else {
+        clearArmed = false; clearTimeout(clearTimer);
+        state.days[todayKey()] = { counts: {}, total: 0 };
+        save();
+      }
+      render();
+    }
+  });
+
+  document.addEventListener("input", function (e) {
+    var t = e.target;
+    if (t.closest && t.closest(".addform")) {
+      if (t.name === "name") draft.name = t.value;
+      else if (t.name === "g") draft.g = t.value;
+      else if (t.name === "max") draft.max = t.value;
+    }
+  });
+
+  document.addEventListener("submit", function (e) {
+    var form = e.target;
+    if (!form.classList || !form.classList.contains("addform")) return;
+    e.preventDefault();
+    var kind = form.getAttribute("data-kind");
+    var name = (draft.name || "").trim();
+    var g = Math.round(Number(draft.g));
+    var max = Math.round(Number(draft.max));
+    var err = document.getElementById("formerr");
+    if (!name) { err.textContent = "Give it a name."; document.getElementById("f-name").focus(); return; }
+    if (!(g >= 1 && g <= 200)) { err.textContent = "Protein needs to be between 1 and 200 grams."; document.getElementById("f-g").focus(); return; }
+    if (!(max >= 1 && max <= 8)) { err.textContent = "Times a day needs to be between 1 and 8."; document.getElementById("f-max").focus(); return; }
+    state.entries.push({ id: newId(), kind: kind, name: name.slice(0, 40), g: g, max: max });
+    adding = null;
+    draft = { name: "", g: "", max: "" };
+    save();
+    render();
+  });
+
+  document.addEventListener("change", function (e) {
+    var t = e.target;
+    if (t.id === "goalIn") {
+      var v = Math.round(Number(t.value));
+      if (v >= 40 && v <= 300) { state.goal = v; save(); }
+      render();
+    } else if (t.getAttribute && t.getAttribute("data-gram")) {
+      var id = t.getAttribute("data-gram"), n = Math.round(Number(t.value));
+      if (n >= 1 && n <= 200) {
+        state.entries.forEach(function (it) { if (it.id === id) it.g = n; });
+        var key = todayKey(), d = dayOf(key);
+        d.total = totalOf(d.counts);
+        save();
+      }
+      render();
+    }
+  });
+
+  document.addEventListener("visibilitychange", function () { if (!document.hidden && !formFocused()) render(); });
+  setInterval(function () { if (todayKey() !== lastToday && !formFocused()) render(); }, 60000);
+
+  lsLoad();
+  render();
+})();
+</script>
+</body>
+</html>
